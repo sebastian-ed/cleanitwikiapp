@@ -286,43 +286,50 @@ alter table public.resources enable row level security;
 alter table public.app_settings enable row level security;
 
 -- profiles
-create policy if not exists "profiles_select_self_or_admin"
+drop policy if exists "profiles_select_self_or_admin" on public.profiles;
+create policy "profiles_select_self_or_admin"
 on public.profiles
 for select
 using (id = auth.uid() or app.is_admin());
 
-create policy if not exists "profiles_update_admin"
+drop policy if exists "profiles_update_admin" on public.profiles;
+create policy "profiles_update_admin"
 on public.profiles
 for update
 using (app.is_admin())
 with check (app.is_admin());
 
 -- spaces
-create policy if not exists "spaces_read_active_users"
+drop policy if exists "spaces_read_active_users" on public.spaces;
+create policy "spaces_read_active_users"
 on public.spaces
 for select
 using (app.is_active_user());
 
-create policy if not exists "spaces_admin_all"
+drop policy if exists "spaces_admin_all" on public.spaces;
+create policy "spaces_admin_all"
 on public.spaces
 for all
 using (app.is_admin())
 with check (app.is_admin());
 
 -- categories
-create policy if not exists "categories_read_active_users"
+drop policy if exists "categories_read_active_users" on public.categories;
+create policy "categories_read_active_users"
 on public.categories
 for select
 using (app.is_active_user());
 
-create policy if not exists "categories_admin_all"
+drop policy if exists "categories_admin_all" on public.categories;
+create policy "categories_admin_all"
 on public.categories
 for all
 using (app.is_admin())
 with check (app.is_admin());
 
 -- pages
-create policy if not exists "pages_read_active_users"
+drop policy if exists "pages_read_active_users" on public.pages;
+create policy "pages_read_active_users"
 on public.pages
 for select
 using (
@@ -333,14 +340,16 @@ using (
   )
 );
 
-create policy if not exists "pages_admin_all"
+drop policy if exists "pages_admin_all" on public.pages;
+create policy "pages_admin_all"
 on public.pages
 for all
 using (app.is_admin())
 with check (app.is_admin());
 
 -- resources
-create policy if not exists "resources_read_active_users"
+drop policy if exists "resources_read_active_users" on public.resources;
+create policy "resources_read_active_users"
 on public.resources
 for select
 using (
@@ -351,19 +360,22 @@ using (
   )
 );
 
-create policy if not exists "resources_admin_all"
+drop policy if exists "resources_admin_all" on public.resources;
+create policy "resources_admin_all"
 on public.resources
 for all
 using (app.is_admin())
 with check (app.is_admin());
 
 -- app settings
-create policy if not exists "settings_read_active_users"
+drop policy if exists "settings_read_active_users" on public.app_settings;
+create policy "settings_read_active_users"
 on public.app_settings
 for select
 using (app.is_active_user());
 
-create policy if not exists "settings_admin_all"
+drop policy if exists "settings_admin_all" on public.app_settings;
+create policy "settings_admin_all"
 on public.app_settings
 for all
 using (app.is_admin())
@@ -374,7 +386,8 @@ insert into storage.buckets (id, name, public)
 values ('wiki-assets', 'wiki-assets', false)
 on conflict (id) do nothing;
 
-create policy if not exists "wiki_assets_select_active_users"
+drop policy if exists "wiki_assets_select_active_users" on storage.objects;
+create policy "wiki_assets_select_active_users"
 on storage.objects
 for select
 using (
@@ -382,7 +395,8 @@ using (
   and app.is_active_user()
 );
 
-create policy if not exists "wiki_assets_insert_admin"
+drop policy if exists "wiki_assets_insert_admin" on storage.objects;
+create policy "wiki_assets_insert_admin"
 on storage.objects
 for insert
 with check (
@@ -390,7 +404,8 @@ with check (
   and app.is_admin()
 );
 
-create policy if not exists "wiki_assets_update_admin"
+drop policy if exists "wiki_assets_update_admin" on storage.objects;
+create policy "wiki_assets_update_admin"
 on storage.objects
 for update
 using (
@@ -402,7 +417,8 @@ with check (
   and app.is_admin()
 );
 
-create policy if not exists "wiki_assets_delete_admin"
+drop policy if exists "wiki_assets_delete_admin" on storage.objects;
+create policy "wiki_assets_delete_admin"
 on storage.objects
 for delete
 using (
