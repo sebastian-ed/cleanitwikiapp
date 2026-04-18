@@ -99,6 +99,13 @@ async function ensureRuntimeDependencies() {
 
 function bindGlobalEvents() {
   window.addEventListener('hashchange', handleHashChange);
+  window.addEventListener('unhandledrejection', (event) => {
+    event.preventDefault();
+    handleError(event.reason);
+  });
+  window.addEventListener('error', (event) => {
+    if (event?.error) handleError(event.error);
+  });
 
   document.querySelectorAll('[data-auth-tab]').forEach((button) => {
     button.addEventListener('click', () => switchAuthTab(button.dataset.authTab));
@@ -1251,6 +1258,15 @@ function closeModal() {
   els.modalContent.innerHTML = '';
 }
 
+function setFormBusy(form, isBusy, busyLabel = 'Guardando...') {
+  if (!form) return;
+  const submit = form.querySelector('[type="submit"]');
+  if (!submit) return;
+  if (!submit.dataset.originalLabel) submit.dataset.originalLabel = submit.textContent || 'Guardar';
+  submit.disabled = isBusy;
+  submit.textContent = isBusy ? busyLabel : submit.dataset.originalLabel;
+}
+
 function openSpaceForm(space = null) {
   openModal({
     title: space ? 'Editar área' : 'Nueva área',
@@ -1271,20 +1287,28 @@ function openSpaceForm(space = null) {
 
   document.getElementById('space-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      name: form.get('name').trim(),
-      slug: slugify(form.get('slug')),
-      description: form.get('description').trim(),
-      icon: form.get('icon').trim() || '📚',
-      nav_order: Number(form.get('nav_order') || 100),
-      is_active: form.get('is_active') === 'true',
-      updated_by: state.user.id,
-    };
-    if (space) payload.id = space.id;
-    else payload.created_by = state.user.id;
-    await upsertRecord('spaces', payload, space ? 'Área actualizada.' : 'Área creada.');
-    closeModal();
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Guardando área...');
+    try {
+      const form = new FormData(formElement);
+      const payload = {
+        name: String(form.get('name') || '').trim(),
+        slug: slugify(form.get('slug')),
+        description: String(form.get('description') || '').trim(),
+        icon: String(form.get('icon') || '').trim() || '📚',
+        nav_order: Number(form.get('nav_order') || 100),
+        is_active: form.get('is_active') === 'true',
+        updated_by: state.user.id,
+      };
+      if (space) payload.id = space.id;
+      else payload.created_by = state.user.id;
+      await upsertRecord('spaces', payload, space ? 'Área actualizada.' : 'Área creada.');
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
+    }
   });
 }
 
@@ -1313,22 +1337,30 @@ function openCategoryForm(category = null) {
 
   document.getElementById('category-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      space_id: form.get('space_id'),
-      parent_id: form.get('parent_id') || null,
-      name: form.get('name').trim(),
-      slug: slugify(form.get('slug')),
-      description: form.get('description').trim(),
-      icon: form.get('icon').trim() || '🗂️',
-      nav_order: Number(form.get('nav_order') || 100),
-      is_active: form.get('is_active') === 'true',
-      updated_by: state.user.id,
-    };
-    if (category) payload.id = category.id;
-    else payload.created_by = state.user.id;
-    await upsertRecord('categories', payload, category ? 'Categoría actualizada.' : 'Categoría creada.');
-    closeModal();
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Guardando categoría...');
+    try {
+      const form = new FormData(formElement);
+      const payload = {
+        space_id: form.get('space_id'),
+        parent_id: form.get('parent_id') || null,
+        name: String(form.get('name') || '').trim(),
+        slug: slugify(form.get('slug')),
+        description: String(form.get('description') || '').trim(),
+        icon: String(form.get('icon') || '').trim() || '🗂️',
+        nav_order: Number(form.get('nav_order') || 100),
+        is_active: form.get('is_active') === 'true',
+        updated_by: state.user.id,
+      };
+      if (category) payload.id = category.id;
+      else payload.created_by = state.user.id;
+      await upsertRecord('categories', payload, category ? 'Categoría actualizada.' : 'Categoría creada.');
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
+    }
   });
 }
 
@@ -1380,26 +1412,34 @@ function openPageForm(page = null) {
 
   document.getElementById('page-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      title: form.get('title').trim(),
-      slug: slugify(form.get('slug') || form.get('title')),
-      space_id: form.get('space_id'),
-      category_id: form.get('category_id') || null,
-      parent_page_id: form.get('parent_page_id') || null,
-      summary: form.get('summary').trim(),
-      body_md: form.get('body_md'),
-      icon: form.get('icon').trim() || '📄',
-      nav_order: Number(form.get('nav_order') || 100),
-      status: form.get('status'),
-      visibility: form.get('visibility'),
-      featured: form.get('featured') === 'true',
-      updated_by: state.user.id,
-    };
-    if (isEdit) payload.id = page.id;
-    else payload.created_by = state.user.id;
-    await upsertRecord('pages', payload, isEdit ? 'Página actualizada.' : 'Página creada.');
-    closeModal();
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Guardando página...');
+    try {
+      const form = new FormData(formElement);
+      const payload = {
+        title: String(form.get('title') || '').trim(),
+        slug: slugify(form.get('slug') || form.get('title')),
+        space_id: form.get('space_id'),
+        category_id: form.get('category_id') || null,
+        parent_page_id: form.get('parent_page_id') || null,
+        summary: String(form.get('summary') || '').trim(),
+        body_md: String(form.get('body_md') || ''),
+        icon: String(form.get('icon') || '').trim() || '📄',
+        nav_order: Number(form.get('nav_order') || 100),
+        status: form.get('status'),
+        visibility: form.get('visibility'),
+        featured: form.get('featured') === 'true',
+        updated_by: state.user.id,
+      };
+      if (isEdit) payload.id = page.id;
+      else payload.created_by = state.user.id;
+      await upsertRecord('pages', payload, isEdit ? 'Página actualizada.' : 'Página creada.');
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
+    }
   });
 }
 
@@ -1443,53 +1483,64 @@ function openResourceForm(resource = null) {
   document.getElementById('resource-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const formEl = event.currentTarget;
-    const form = new FormData(formEl);
-    const file = form.get('file');
-    const kind = form.get('kind');
+    setFormBusy(formEl, true, 'Guardando recurso...');
+    try {
+      const form = new FormData(formEl);
+      const file = form.get('file');
+      const kind = form.get('kind');
 
-    let storagePath = resource?.storage_path || null;
-    let mimeType = resource?.mime_type || null;
-    let sizeBytes = resource?.size_bytes || null;
+      let storagePath = resource?.storage_path || null;
+      let mimeType = resource?.mime_type || null;
+      let sizeBytes = resource?.size_bytes || null;
 
-    if (file && typeof file.name === 'string' && file.size > 0) {
-      const folder = slugify(form.get('folder') || 'general') || 'general';
-      const fileName = `${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, ''))}.${file.name.split('.').pop()}`;
-      storagePath = `${folder}/${fileName}`;
-      mimeType = file.type || null;
-      sizeBytes = file.size || null;
-      const { error: uploadError } = await supabase.storage.from(CONFIG.STORAGE_BUCKET).upload(storagePath, file, { upsert: false, contentType: file.type || undefined });
-      if (uploadError) throw uploadError;
-    } else if (resource?.storage_path && form.get('move_folder') && form.get('move_folder').trim() !== (resource.folder || '')) {
-      const newFolder = slugify(form.get('move_folder')) || 'general';
-      const fileName = resource.storage_path.split('/').pop();
-      const nextPath = `${newFolder}/${fileName}`;
-      const { error: moveError } = await supabase.storage.from(CONFIG.STORAGE_BUCKET).move(resource.storage_path, nextPath);
-      if (moveError) throw moveError;
-      storagePath = nextPath;
+      if (file && typeof file.name === 'string' && file.size > 0) {
+        const folder = slugify(form.get('folder') || 'general') || 'general';
+        const fileName = `${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, ''))}.${file.name.split('.').pop()}`;
+        storagePath = `${folder}/${fileName}`;
+        mimeType = file.type || null;
+        sizeBytes = file.size || null;
+        const { error: uploadError } = await supabase.storage.from(CONFIG.STORAGE_BUCKET).upload(storagePath, file, { upsert: false, contentType: file.type || undefined });
+        if (uploadError) throw uploadError;
+      } else if (resource?.storage_path && form.get('move_folder') && String(form.get('move_folder')).trim() !== (resource.folder || '')) {
+        const newFolder = slugify(form.get('move_folder')) || 'general';
+        const fileName = resource.storage_path.split('/').pop();
+        const nextPath = `${newFolder}/${fileName}`;
+        const { error: moveError } = await supabase.storage.from(CONFIG.STORAGE_BUCKET).move(resource.storage_path, nextPath);
+        if (moveError) throw moveError;
+        storagePath = nextPath;
+      }
+
+      const payload = {
+        title: String(form.get('title') || '').trim(),
+        description: String(form.get('description') || '').trim(),
+        kind,
+        status: form.get('status'),
+        folder: slugify(form.get('folder') || 'general') || 'general',
+        url: String(form.get('url') || '').trim() || null,
+        preview_url: String(form.get('preview_url') || '').trim() || null,
+        storage_bucket: storagePath ? CONFIG.STORAGE_BUCKET : resource?.storage_bucket || null,
+        storage_path: storagePath,
+        mime_type: mimeType,
+        size_bytes: sizeBytes,
+        space_id: form.get('space_id') || null,
+        linked_page_id: form.get('linked_page_id') || null,
+        updated_by: state.user.id,
+      };
+
+      if (resource) payload.id = resource.id;
+      else payload.created_by = state.user.id;
+
+      if ((kind === 'file' || file?.size > 0) && !storagePath) {
+        throw new Error('Tenés que subir un archivo para crear un recurso tipo file.');
+      }
+
+      await upsertRecord('resources', payload, resource ? 'Recurso actualizado.' : 'Recurso creado.');
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formEl, false);
     }
-
-    const payload = {
-      title: form.get('title').trim(),
-      kind,
-      space_id: form.get('space_id') || null,
-      linked_page_id: form.get('linked_page_id') || null,
-      status: form.get('status'),
-      folder: slugify(form.get('folder') || 'general') || 'general',
-      description: form.get('description').trim(),
-      url: form.get('url').trim() || null,
-      preview_url: form.get('preview_url').trim() || null,
-      storage_bucket: storagePath ? CONFIG.STORAGE_BUCKET : null,
-      storage_path: storagePath,
-      mime_type: mimeType,
-      size_bytes: sizeBytes,
-      updated_by: state.user.id,
-    };
-
-    if (resource) payload.id = resource.id;
-    else payload.created_by = state.user.id;
-
-    await upsertRecord('resources', payload, resource ? 'Recurso actualizado.' : 'Recurso creado.');
-    closeModal();
   });
 }
 
@@ -1513,21 +1564,29 @@ function openBrandingForm() {
 
   document.getElementById('branding-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      app_name: form.get('app_name').trim(),
-      tagline: form.get('tagline').trim(),
-      primary_color: form.get('primary_color').trim(),
-      logo_text: form.get('logo_text').trim() || 'CI',
-      home_title: form.get('home_title').trim(),
-      home_copy: form.get('home_copy').trim(),
-    };
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Guardando branding...');
+    try {
+      const form = new FormData(formElement);
+      const payload = {
+        app_name: String(form.get('app_name') || '').trim(),
+        tagline: String(form.get('tagline') || '').trim(),
+        primary_color: String(form.get('primary_color') || '').trim(),
+        logo_text: String(form.get('logo_text') || '').trim() || 'CI',
+        home_title: String(form.get('home_title') || '').trim(),
+        home_copy: String(form.get('home_copy') || '').trim(),
+      };
 
-    const { error } = await supabase.from('app_settings').upsert({ key: 'branding', value: payload, updated_by: state.user.id }, { onConflict: 'key' });
-    if (error) throw error;
-    notify('Branding actualizado.', 'success');
-    await reloadWorkspace();
-    closeModal();
+      const { error } = await supabase.from('app_settings').upsert({ key: 'branding', value: payload, updated_by: state.user.id }, { onConflict: 'key' });
+      if (error) throw error;
+      notify('Branding actualizado.', 'success');
+      await reloadWorkspace();
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
+    }
   });
 }
 
@@ -1571,31 +1630,47 @@ function openAccountModal() {
 
   document.getElementById('account-profile-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const { error } = await supabase.rpc('update_my_profile', {
-      p_full_name: form.get('full_name').trim(),
-      p_department: form.get('department').trim(),
-      p_job_title: form.get('job_title').trim(),
-    });
-    if (error) throw error;
-    notify('Perfil actualizado.', 'success');
-    await reloadWorkspace();
-    closeModal();
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Guardando perfil...');
+    try {
+      const form = new FormData(formElement);
+      const { error } = await supabase.rpc('update_my_profile', {
+        p_full_name: String(form.get('full_name') || '').trim(),
+        p_department: String(form.get('department') || '').trim(),
+        p_job_title: String(form.get('job_title') || '').trim(),
+      });
+      if (error) throw error;
+      notify('Perfil actualizado.', 'success');
+      await reloadWorkspace();
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
+    }
   });
 
   document.getElementById('account-security-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const password = form.get('password');
-    const passwordConfirm = form.get('password_confirm');
-    if (password !== passwordConfirm) {
-      notify('Las contraseñas no coinciden.', 'error');
-      return;
+    const formElement = event.currentTarget;
+    setFormBusy(formElement, true, 'Actualizando contraseña...');
+    try {
+      const form = new FormData(formElement);
+      const password = form.get('password');
+      const passwordConfirm = form.get('password_confirm');
+      if (password !== passwordConfirm) {
+        notify('Las contraseñas no coinciden.', 'error');
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      notify('Contraseña actualizada.', 'success');
+      closeModal();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setFormBusy(formElement, false);
     }
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
-    notify('Contraseña actualizada.', 'success');
-    closeModal();
   });
 }
 
@@ -1694,10 +1769,20 @@ async function saveUserRow(userId) {
 }
 
 async function upsertRecord(table, payload, successMessage) {
-  const { error } = await supabase.from(table).upsert(payload).select().single();
-  if (error) throw error;
+  const isUpdate = Boolean(payload?.id);
+  let response;
+
+  if (isUpdate) {
+    const { id, ...changes } = payload;
+    response = await supabase.from(table).update(changes).eq('id', id).select().single();
+  } else {
+    response = await supabase.from(table).insert(payload).select().single();
+  }
+
+  if (response.error) throw response.error;
   notify(successMessage, 'success');
   await reloadWorkspace();
+  return response.data;
 }
 
 async function deleteRecord(table, id, successMessage) {
