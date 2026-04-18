@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clean It Wiki</title>
+    <meta name="description" content="Wiki corporativa para centralizar el conocimiento operativo y administrativo de la empresa." />
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./css/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.0/dist/purify.min.js" defer></script>
+  </head>
+  <body>
+    <div id="app">
+      <section id="setup-screen" class="setup-screen hidden">
+        <div class="setup-card card">
+          <div class="brand-mark large">CI</div>
+          <h1>Configuración pendiente</h1>
+          <p>
+            Esta app necesita tus credenciales públicas de Supabase. Abrí <code>js/config.js</code>, completá la URL y la anon key, y volvé a publicar.
+          </p>
+        </div>
+      </section>
+
+      <section id="auth-screen" class="auth-shell hidden">
+        <div class="auth-hero">
+          <div class="brand-chip">
+            <div class="brand-mark">CI</div>
+            <span id="auth-brand-name">Clean It Wiki</span>
+          </div>
+          <h1 id="auth-hero-title">Tu operación no necesita más chats perdidos ni PDFs sueltos.</h1>
+          <p id="auth-hero-copy">
+            Centralizá procedimientos, RRHH, capacitación, archivos y documentación en un único punto de verdad.
+          </p>
+          <div class="hero-points">
+            <div class="mini-card">
+              <strong>Wiki viva</strong>
+              <span>Edición en tiempo real con Supabase.</span>
+            </div>
+            <div class="mini-card">
+              <strong>Roles y permisos</strong>
+              <span>Usuarios y administradores con políticas RLS.</span>
+            </div>
+            <div class="mini-card">
+              <strong>Adjuntos privados</strong>
+              <span>Documentos, imágenes y videos centralizados.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-panel card">
+          <div class="tabs compact" role="tablist" aria-label="Acceso">
+            <button class="tab active" data-auth-tab="login">Ingresar</button>
+            <button class="tab" data-auth-tab="signup">Crear cuenta</button>
+            <button class="tab" data-auth-tab="recover">Recuperar acceso</button>
+          </div>
+
+          <form id="login-form" class="form-panel" autocomplete="on">
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" required placeholder="empresa@dominio.com" />
+            </label>
+            <label>
+              <span>Contraseña</span>
+              <input type="password" name="password" required placeholder="••••••••" />
+            </label>
+            <button class="btn primary" type="submit">Ingresar</button>
+          </form>
+
+          <form id="signup-form" class="form-panel hidden" autocomplete="on">
+            <label>
+              <span>Nombre completo</span>
+              <input type="text" name="full_name" required placeholder="Nombre y apellido" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" required placeholder="empresa@dominio.com" />
+            </label>
+            <label>
+              <span>Contraseña</span>
+              <input type="password" name="password" minlength="8" required placeholder="Mínimo 8 caracteres" />
+            </label>
+            <label>
+              <span>Confirmar contraseña</span>
+              <input type="password" name="password_confirm" minlength="8" required placeholder="Repetí la contraseña" />
+            </label>
+            <button class="btn primary" type="submit">Crear cuenta</button>
+            <p class="muted small">
+              Si la confirmación por email está activa en Supabase, el alta se completa desde el correo.
+            </p>
+          </form>
+
+          <form id="recover-form" class="form-panel hidden" autocomplete="on">
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" required placeholder="empresa@dominio.com" />
+            </label>
+            <button class="btn primary" type="submit">Enviar email de recuperación</button>
+            <p class="muted small">
+              Recordá agregar en Supabase la URL de redirección de esta app para el flujo de recuperación.
+            </p>
+          </form>
+
+          <form id="password-reset-form" class="form-panel hidden">
+            <div class="callout info">
+              <strong>Recuperación detectada</strong>
+              <span>Definí tu nueva contraseña para cerrar el proceso.</span>
+            </div>
+            <label>
+              <span>Nueva contraseña</span>
+              <input type="password" name="password" minlength="8" required placeholder="Nueva contraseña" />
+            </label>
+            <label>
+              <span>Confirmar nueva contraseña</span>
+              <input type="password" name="password_confirm" minlength="8" required placeholder="Repetí la nueva contraseña" />
+            </label>
+            <button class="btn primary" type="submit">Actualizar contraseña</button>
+          </form>
+
+          <div id="auth-message" class="feedback hidden"></div>
+        </div>
+      </section>
+
+      <section id="app-shell" class="app-shell hidden">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="brand-chip">
+              <div class="brand-mark" id="brand-mark-sidebar">CI</div>
+              <div>
+                <strong id="sidebar-brand-name">Clean It Wiki</strong>
+                <div class="muted small">Base operativa y corporativa</div>
+              </div>
+            </div>
+            <button id="sidebar-toggle" class="icon-btn mobile-only" type="button" aria-label="Cerrar navegación">✕</button>
+          </div>
+
+          <div class="sidebar-search">
+            <input id="sidebar-search-input" type="search" placeholder="Buscar procedimientos, RRHH, archivos..." />
+          </div>
+
+          <nav class="sidebar-nav">
+            <button class="nav-link active" data-view="home">Inicio</button>
+            <button class="nav-link" data-view="library">Biblioteca</button>
+            <button class="nav-link admin-only hidden" data-view="admin">Administración</button>
+          </nav>
+
+          <div class="sidebar-section">
+            <div class="sidebar-section-head">
+              <span>Áreas</span>
+            </div>
+            <div id="tree-nav" class="tree-nav"></div>
+          </div>
+
+          <div class="sidebar-footer">
+            <div class="profile-card">
+              <div class="avatar" id="profile-avatar">?</div>
+              <div>
+                <strong id="profile-name">Usuario</strong>
+                <div class="muted small" id="profile-role">user</div>
+              </div>
+            </div>
+            <div class="sidebar-actions">
+              <button id="open-account-btn" class="btn ghost" type="button">Mi cuenta</button>
+              <button id="logout-btn" class="btn danger ghost" type="button">Salir</button>
+            </div>
+          </div>
+        </aside>
+
+        <div class="shell-main">
+          <header class="topbar">
+            <div class="topbar-left">
+              <button id="open-sidebar-btn" class="icon-btn mobile-only" type="button" aria-label="Abrir navegación">☰</button>
+              <div>
+                <div id="page-kicker" class="kicker">Wiki corporativa</div>
+                <h1 id="page-title">Inicio</h1>
+              </div>
+            </div>
+            <div class="topbar-right">
+              <button id="quick-new-page" class="btn primary admin-only hidden" type="button">Nueva página</button>
+            </div>
+          </header>
+
+          <main id="main-content" class="main-content"></main>
+        </div>
+
+        <aside id="context-panel" class="context-panel">
+          <section class="card sticky">
+            <h3>Ayuda rápida</h3>
+            <div id="context-panel-body" class="context-body"></div>
+          </section>
+        </aside>
+      </section>
+    </div>
+
+    <dialog id="modal" class="modal">
+      <div class="modal-shell">
+        <div class="modal-header">
+          <div>
+            <div id="modal-kicker" class="kicker">Edición</div>
+            <h2 id="modal-title">Formulario</h2>
+          </div>
+          <button id="modal-close" class="icon-btn" type="button" aria-label="Cerrar modal">✕</button>
+        </div>
+        <div id="modal-content" class="modal-content"></div>
+      </div>
+    </dialog>
+
+    <template id="page-card-template">
+      <article class="page-card card hoverable">
+        <div class="page-card-head">
+          <div class="page-icon"></div>
+          <div>
+            <h3 class="page-card-title"></h3>
+            <p class="page-card-summary muted"></p>
+          </div>
+        </div>
+        <div class="page-card-meta small muted"></div>
+      </article>
+    </template>
+
+    <script src="./js/config.js"></script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
