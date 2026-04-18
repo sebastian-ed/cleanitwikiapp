@@ -119,6 +119,35 @@ function bindGlobalEvents() {
   document.getElementById('sidebar-toggle').addEventListener('click', closeSidebar);
   document.getElementById('open-sidebar-btn').addEventListener('click', openSidebar);
 
+  document.addEventListener('click', (event) => {
+    const jumpView = event.target.closest('[data-jump-view]');
+    if (jumpView) {
+      setRoute({ view: jumpView.dataset.jumpView, tab: jumpView.dataset.jumpTab || undefined, id: jumpView.dataset.jumpId || undefined });
+      closeSidebar();
+      return;
+    }
+
+    const jumpSpace = event.target.closest('[data-jump-space]');
+    if (jumpSpace) {
+      setRoute({ view: 'space', id: jumpSpace.dataset.jumpSpace });
+      closeSidebar();
+      return;
+    }
+
+    const jumpPage = event.target.closest('[data-jump-page]');
+    if (jumpPage) {
+      setRoute({ view: 'page', id: jumpPage.dataset.jumpPage });
+      closeSidebar();
+      return;
+    }
+
+    const scrollTarget = event.target.closest('[data-scroll-target]');
+    if (scrollTarget) {
+      const node = document.getElementById(scrollTarget.dataset.scrollTarget);
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
   document.querySelectorAll('.nav-link').forEach((button) => {
     button.addEventListener('click', () => {
       setRoute({ view: button.dataset.view });
@@ -294,6 +323,7 @@ function renderRoute() {
   highlightTopLevelNav(view);
 
   if (view === 'page') return renderPageView(state.route.id);
+  if (view === 'space') return renderSpaceView(state.route.id);
   if (view === 'search') return renderSearchView(state.route.q);
   if (view === 'library') return renderLibraryView();
   if (view === 'admin') return renderAdminView(state.route.tab);
@@ -318,11 +348,12 @@ function renderSidebarTree() {
   const pages = visiblePages();
   const html = state.spaces
     .map((space) => {
-      const cats = state.categories.filter((cat) => cat.space_id === space.id);
+      const cats = state.categories.filter((cat) => cat.space_id === space.id && !cat.parent_id);
       const uncategorized = pages.filter((page) => page.space_id === space.id && !page.category_id);
+      const isActiveSpace = state.route.view === 'space' && state.route.id === space.id;
       return `
         <div class="tree-group">
-          <button class="tree-toggle" data-space-id="${space.id}">${space.icon || '📚'} ${escapeHtml(space.name)}</button>
+          <button class="tree-toggle ${isActiveSpace ? 'active' : ''}" data-space-id="${space.id}">${space.icon || '📚'} ${escapeHtml(space.name)}</button>
           <div class="tree-children">
             ${cats
               .map((cat) => renderCategoryNode(cat, pages))
@@ -349,10 +380,8 @@ function renderSidebarTree() {
 
   els.treeNav.querySelectorAll('[data-space-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      const space = state.spaces.find((item) => item.id === button.dataset.spaceId);
-      if (!space) return;
-      const firstPage = firstPageForSpace(space.id);
-      if (firstPage) setRoute({ view: 'page', id: firstPage.id });
+      setRoute({ view: 'space', id: button.dataset.spaceId });
+      closeSidebar();
     });
   });
 }
@@ -453,7 +482,7 @@ function renderHomeView() {
                     <p class="page-card-summary muted">${escapeHtml(space.description || 'Sin descripción todavía.')}</p>
                   </div>
                 </div>
-                <div class="page-card-meta small muted">${firstPage ? 'Ir al primer contenido disponible' : 'Todavía sin páginas publicadas'}</div>
+                <div class="page-card-meta small muted">${firstPage ? 'Abrir área y ver contenidos disponibles' : 'Abrir área y empezar a estructurar contenido'}</div>
               </article>
             `;
           })
@@ -486,12 +515,95 @@ function renderHomeView() {
   document.querySelectorAll('[data-space-card]').forEach((card) => {
     card.addEventListener('click', () => {
       const page = firstPageForSpace(card.dataset.spaceCard);
-      if (page) setRoute({ view: 'page', id: page.id });
+      setRoute({ view: 'space', id: card.dataset.spaceCard });
     });
   });
   attachPageCardEvents();
   attachResourceCardEvents();
   renderContextPanelHome();
+}
+
+
+function renderSpaceView(spaceId) {
+  const space = state.spaces.find((item) => item.id === spaceId) || state.spaces[0] || null;
+  if (!space) {
+    els.pageTitle.textContent = 'Áreas';
+    els.pageKicker.textContent = 'Wiki';
+    els.mainContent.innerHTML = renderEmptyBlock('Todavía no hay áreas creadas.', state.profile.role === 'admin' ? 'Creá la primera área desde Administración.' : 'Pedile a un administrador que configure la estructura inicial.');
+    renderContextPanelGeneric();
+    return;
+  }
+
+  const pages = visiblePages().filter((page) => page.space_id === space.id);
+  const resources = visibleResources().filter((resource) => resource.space_id === space.id);
+  const rootCategories = state.categories.filter((cat) => cat.space_id === space.id && !cat.parent_id && cat.is_active !== false);
+  const uncategorizedPages = pages.filter((page) => !page.category_id);
+
+  els.pageTitle.textContent = space.name;
+  els.pageKicker.textContent = 'Área';
+
+  const categoryHtml = rootCategories.length
+    ? rootCategories.map((category) => {
+        const childPages = pages.filter((page) => page.category_id === category.id);
+        const childCategories = state.categories.filter((item) => item.parent_id === category.id && item.is_active !== false);
+        return `
+          <article class="section-card card">
+            <div class="attachments-head">
+              <h2>${escapeHtml(category.icon || '🗂️')} ${escapeHtml(category.name)}</h2>
+            </div>
+            ${category.description ? `<p class="muted">${escapeHtml(category.description)}</p>` : ''}
+            ${childCategories.length ? `
+              <div class="pill-group">
+                ${childCategories.map((child) => `<span class="pill">${escapeHtml(child.icon || '📁')} ${escapeHtml(child.name)}</span>`).join('')}
+              </div>
+            ` : ''}
+            <div class="page-grid">
+              ${childPages.length ? childPages.map(renderPageCard).join('') : renderEmptyBlock('Todavía no hay páginas publicadas en esta categoría.', state.profile.role === 'admin' ? 'Podés crear la primera desde el panel admin.' : 'Esta sección todavía no tiene material publicado.')}
+            </div>
+          </article>
+        `;
+      }).join('')
+    : '';
+
+  els.mainContent.innerHTML = `
+    <section class="hero-card card">
+      <div class="badge primary">${escapeHtml(space.icon || '📚')} Área</div>
+      <h2>${escapeHtml(space.name)}</h2>
+      <p class="muted">${escapeHtml(space.description || 'Todavía no hay una descripción para esta área.')}</p>
+      <div class="meta-grid">
+        <span class="badge">Páginas: ${pages.length}</span>
+        <span class="badge">Recursos: ${resources.length}</span>
+        ${state.profile.role === 'admin' ? `<button class="btn primary" type="button" id="new-page-for-space-btn">Nueva página en esta área</button>` : ''}
+      </div>
+    </section>
+
+    ${uncategorizedPages.length ? `
+      <section class="section-card card">
+        <div class="attachments-head">
+          <h2>Páginas principales</h2>
+        </div>
+        <div class="page-grid">
+          ${uncategorizedPages.map(renderPageCard).join('')}
+        </div>
+      </section>
+    ` : ''}
+
+    ${categoryHtml || renderEmptyBlock('Esta área todavía no tiene páginas publicadas.', state.profile.role === 'admin' ? 'La estructura existe, pero el contenido todavía no. Hora de cargar material útil.' : 'Todavía no hay contenido visible para esta área.')}
+
+    <section class="section-card card">
+      <div class="attachments-head">
+        <h2>Recursos del área</h2>
+      </div>
+      <div class="resource-grid">
+        ${resources.length ? resources.slice(0, 12).map(renderResourceCardStatic).join('') : renderEmptyBlock('No hay recursos asociados a esta área.', state.profile.role === 'admin' ? 'Subí archivos, links o videos desde Biblioteca o Administración.' : 'Esta área todavía no tiene adjuntos publicados.')}
+      </div>
+    </section>
+  `;
+
+  document.getElementById('new-page-for-space-btn')?.addEventListener('click', () => openPageForm({ space_id: space.id }));
+  attachPageCardEvents();
+  attachResourceCardEvents();
+  renderContextPanelSpace(space, pages, resources, rootCategories);
 }
 
 function renderLibraryView() {
@@ -977,8 +1089,8 @@ function renderResourceCardStatic(resource) {
 function renderContextPanelHome() {
   const adminLinks = state.profile?.role === 'admin'
     ? `
-      <a href="#view=admin&tab=content">Administrar estructura</a>
-      <a href="#view=admin&tab=users">Gestionar usuarios</a>
+      <button class="link-btn" type="button" data-jump-view="admin" data-jump-tab="content">Administrar estructura</button>
+      <button class="link-btn" type="button" data-jump-view="admin" data-jump-tab="users">Gestionar usuarios</button>
     `
     : '';
 
@@ -991,7 +1103,7 @@ function renderContextPanelHome() {
       <div>
         <strong>Accesos rápidos</strong>
         <div class="list-stack">
-          <a href="#view=library">Abrir biblioteca</a>
+          <button class="link-btn" type="button" data-jump-view="library">Abrir biblioteca</button>
           ${adminLinks}
         </div>
       </div>
@@ -1020,7 +1132,7 @@ function renderContextPanelPage(page, toc, resources) {
       <div>
         <strong>En esta página</strong>
         <div class="list-stack">
-          ${toc.length ? toc.map((item) => `<a href="#${item.id}">${escapeHtml(item.text)}</a>`).join('') : '<span class="muted">Sin índice interno.</span>'}
+          ${toc.length ? toc.map((item) => `<button class="link-btn" type="button" data-scroll-target="${item.id}">${escapeHtml(item.text)}</button>`).join('') : '<span class="muted">Sin índice interno.</span>'}
         </div>
       </div>
       <div>
@@ -1029,6 +1141,33 @@ function renderContextPanelPage(page, toc, resources) {
           <span class="muted">Estado: ${escapeHtml(page.status)}</span>
           <span class="muted">Adjuntos: ${resources.length}</span>
           <span class="muted">Última actualización: ${formatDate(page.updated_at)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderContextPanelSpace(space, pages, resources, categories) {
+  const featuredPage = pages[0];
+  els.contextBody.innerHTML = `
+    <div class="list-stack small">
+      <div class="callout info">
+        <strong>${escapeHtml(space.name)}</strong>
+        <span>${escapeHtml(space.description || 'Área operativa disponible para consulta interna.')}</span>
+      </div>
+      <div>
+        <strong>Resumen</strong>
+        <div class="list-stack">
+          <span class="muted">Categorías: ${categories.length}</span>
+          <span class="muted">Páginas: ${pages.length}</span>
+          <span class="muted">Recursos: ${resources.length}</span>
+        </div>
+      </div>
+      <div>
+        <strong>Accesos rápidos</strong>
+        <div class="list-stack">
+          ${featuredPage ? `<button class="link-btn" type="button" data-jump-page="${featuredPage.id}">Abrir primera página publicada</button>` : '<span class="muted">No hay páginas publicadas todavía.</span>'}
+          <button class="link-btn" type="button" data-jump-view="library">Ir a biblioteca</button>
         </div>
       </div>
     </div>
@@ -1194,12 +1333,13 @@ function openCategoryForm(category = null) {
 }
 
 function openPageForm(page = null) {
+  const isEdit = Boolean(page?.id);
   const spaceOptions = state.spaces.map((space) => `<option value="${space.id}" ${page?.space_id === space.id ? 'selected' : ''}>${escapeHtml(space.name)}</option>`).join('');
   const categoryOptions = [`<option value="">Sin categoría</option>`, ...state.categories.map((cat) => `<option value="${cat.id}" ${page?.category_id === cat.id ? 'selected' : ''}>${escapeHtml(spaceName(cat.space_id))} · ${escapeHtml(cat.name)}</option>`)].join('');
   const parentPageOptions = [`<option value="">Sin página padre</option>`, ...state.pages.filter((item) => item.id !== page?.id).map((item) => `<option value="${item.id}" ${page?.parent_page_id === item.id ? 'selected' : ''}>${escapeHtml(item.title)}</option>`)].join('');
 
   openModal({
-    title: page ? 'Editar página' : 'Nueva página',
+    title: isEdit ? 'Editar página' : 'Nueva página',
     kicker: 'Contenido',
     content: `
       <form id="page-form" class="form-grid two">
@@ -1256,9 +1396,9 @@ function openPageForm(page = null) {
       featured: form.get('featured') === 'true',
       updated_by: state.user.id,
     };
-    if (page) payload.id = page.id;
+    if (isEdit) payload.id = page.id;
     else payload.created_by = state.user.id;
-    await upsertRecord('pages', payload, page ? 'Página actualizada.' : 'Página creada.');
+    await upsertRecord('pages', payload, isEdit ? 'Página actualizada.' : 'Página creada.');
     closeModal();
   });
 }
