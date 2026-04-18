@@ -1209,3 +1209,201 @@ body.sidebar-open::before {
     padding: 1.5rem;
   }
 }
+
+/* --- shell usability refinement --- */
+.sidebar {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tree-nav {
+  overflow: auto;
+  padding-right: 0.3rem;
+  align-content: start;
+}
+
+.sidebar-footer {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(11,18,32,0) 0%, rgba(11,18,32,0.92) 24%);
+}
+
+.profile-card-compact {
+  min-width: 0;
+}
+
+.profile-meta {
+  min-width: 0;
+}
+
+.profile-meta strong,
+.profile-meta .muted {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sidebar-footer-note {
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.35;
+}
+
+.topbar-right {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.topbar-right .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 719px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .topbar-right {
+    width: 100%;
+  }
+
+  .topbar-right .btn {
+    flex: 1 1 calc(50% - 0.5rem);
+  }
+
+  .topbar-right .btn.primary {
+    flex-basis: 100%;
+  }
+}
+
+/* --- improved page editor --- */
+.page-form-advanced {
+  display: grid;
+  gap: 1rem;
+}
+
+.page-form-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.editor-main,
+.editor-side,
+.editor-panel,
+.builder-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.editor-main,
+.editor-side {
+  padding: 1rem;
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  border-radius: 20px;
+  background: #fff;
+}
+
+.editor-main {
+  min-width: 0;
+}
+
+.editor-side {
+  align-content: start;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+}
+
+.editor-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.3rem;
+  border-radius: 16px;
+  background: rgba(11, 18, 32, 0.05);
+}
+
+.editor-tab {
+  border: none;
+  background: transparent;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.editor-tab.active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 6px 16px rgba(11, 18, 32, 0.08);
+}
+
+.page-body-input {
+  min-height: 420px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.6;
+}
+
+.page-preview-pane {
+  min-height: 420px;
+}
+
+.editor-side .mini-actions,
+.editor-side .settings-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-grid {
+  grid-template-columns: 1fr;
+}
+
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.template-actions .btn {
+  padding: 0.68rem 0.85rem;
+}
+
+.builder-grid textarea {
+  min-height: 96px;
+}
+
+.builder-tip {
+  line-height: 1.45;
+}
+
+.modal-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+}
+
+.modal-footer-actions .quick-actions {
+  margin-left: auto;
+}
+
+@media (min-width: 980px) {
+  .page-form-layout {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.82fr);
+    align-items: start;
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

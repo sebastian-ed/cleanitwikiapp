@@ -1374,43 +1374,332 @@ function openPageForm(page = null) {
     title: isEdit ? 'Editar página' : 'Nueva página',
     kicker: 'Contenido',
     content: `
-      <form id="page-form" class="form-grid two">
-        <input type="hidden" name="id" value="${page?.id || ''}" />
-        <label><span>Título</span><input type="text" name="title" required value="${escapeHtml(page?.title || '')}" /></label>
-        <label><span>Slug</span><input type="text" name="slug" required value="${escapeHtml(page?.slug || '')}" placeholder="recibo-de-sueldo" /></label>
-        <label><span>Área</span><select name="space_id" required>${spaceOptions}</select></label>
-        <label><span>Categoría</span><select name="category_id">${categoryOptions}</select></label>
-        <label><span>Página padre</span><select name="parent_page_id">${parentPageOptions}</select></label>
-        <label><span>Ícono</span><input type="text" name="icon" value="${escapeHtml(page?.icon || '📄')}" /></label>
-        <label><span>Orden</span><input type="number" name="nav_order" value="${page?.nav_order ?? 100}" /></label>
-        <label><span>Estado</span><select name="status"><option value="published" ${page?.status !== 'draft' ? 'selected' : ''}>Publicado</option><option value="draft" ${page?.status === 'draft' ? 'selected' : ''}>Borrador</option></select></label>
-        <label><span>Visibilidad</span><select name="visibility"><option value="internal" ${page?.visibility !== 'public' ? 'selected' : ''}>internal</option><option value="public" ${page?.visibility === 'public' ? 'selected' : ''}>public</option></select></label>
-        <label><span>Destacada</span><select name="featured"><option value="true" ${page?.featured ? 'selected' : ''}>Sí</option><option value="false" ${!page?.featured ? 'selected' : ''}>No</option></select></label>
-        <label style="grid-column:1 / -1"><span>Resumen</span><textarea name="summary">${escapeHtml(page?.summary || '')}</textarea></label>
-        <div style="grid-column:1 / -1" class="editor-toolbar">
-          <button type="button" data-insert="## Título\n\nTexto...">H2</button>
-          <button type="button" data-insert="### Subtítulo\n\nTexto...">H3</button>
-          <button type="button" data-insert="- Punto 1\n- Punto 2\n- Punto 3">Lista</button>
-          <button type="button" data-insert="> Nota importante\n">Cita</button>
-          <button type="button" data-insert="[Texto del link](https://)">Link</button>
-          <button type="button" data-insert="![Descripción](https://)">Imagen</button>
+      <form id="page-form" class="page-form-advanced">
+        <div class="page-form-layout">
+          <section class="editor-main">
+            <div class="form-grid two">
+              <label><span>Título</span><input type="text" id="page-title-input" name="title" required value="${escapeHtml(page?.title || '')}" placeholder="Ej. Proceso de ingreso de operarios" /></label>
+              <label><span>Slug</span><input type="text" id="page-slug-input" name="slug" required value="${escapeHtml(page?.slug || '')}" placeholder="proceso-de-ingreso" /></label>
+            </div>
+            <label><span>Resumen corto</span><textarea name="summary" placeholder="Decí en una línea para qué sirve esta página.">${escapeHtml(page?.summary || '')}</textarea></label>
+
+            <div class="editor-tabs" role="tablist" aria-label="Editor de página">
+              <button class="editor-tab active" type="button" data-editor-tab="write">Editor</button>
+              <button class="editor-tab" type="button" data-editor-tab="preview">Vista previa</button>
+              <button class="editor-tab" type="button" data-editor-tab="assistant">Asistente</button>
+            </div>
+
+            <div class="editor-toolbar">
+              <button type="button" data-insert="## Título&#10;&#10;Texto...">H2</button>
+              <button type="button" data-insert="### Subtítulo&#10;&#10;Texto...">H3</button>
+              <button type="button" data-insert="- Punto 1&#10;- Punto 2&#10;- Punto 3">Lista</button>
+              <button type="button" data-insert="1. Paso 1&#10;2. Paso 2&#10;3. Paso 3">Pasos</button>
+              <button type="button" data-insert="> Nota importante&#10;">Nota</button>
+              <button type="button" data-insert="[Texto del link](https://)">Link</button>
+              <button type="button" data-insert="![Descripción](https://)">Imagen</button>
+            </div>
+
+            <section class="editor-panel" data-editor-panel="write">
+              <label>
+                <span>Contenido</span>
+                <textarea name="body_md" id="page-body-input" class="page-body-input" placeholder="# Título&#10;&#10;Explicá el proceso con pasos, responsables, tiempos, adjuntos y excepciones.">${escapeHtml(page?.body_md || '')}</textarea>
+              </label>
+            </section>
+
+            <section class="editor-panel hidden" data-editor-panel="preview">
+              <div class="callout info builder-tip">
+                <strong>Vista previa en vivo</strong>
+                <span>Acá ves cómo quedará la página publicada. Si está desordenada acá, en producción también.</span>
+              </div>
+              <div id="page-preview-pane" class="page-content page-preview-pane"></div>
+            </section>
+
+            <section class="editor-panel hidden" data-editor-panel="assistant">
+              <div class="callout info builder-tip">
+                <strong>Asistente de estructura</strong>
+                <span>Completá lo mínimo y te arma un borrador usable. La idea no es escribir lindo: es que la operación entienda rápido.</span>
+              </div>
+              <div class="builder-grid">
+                <label>
+                  <span>Tipo de página</span>
+                  <select id="builder-type">
+                    <option value="sop">Procedimiento / SOP</option>
+                    <option value="rrhh">RRHH / onboarding</option>
+                    <option value="policy">Política / norma</option>
+                    <option value="faq">Preguntas frecuentes</option>
+                  </select>
+                </label>
+                <label><span>Objetivo</span><textarea id="builder-objective" placeholder="Qué resuelve esta página y para qué existe."></textarea></label>
+                <label><span>Alcance</span><textarea id="builder-scope" placeholder="A quién aplica, en qué casos y con qué límites."></textarea></label>
+                <label><span>Responsable</span><input id="builder-owner" type="text" placeholder="Supervisor, RRHH, Operaciones..." /></label>
+                <label><span>Materiales / prerequisitos</span><textarea id="builder-materials" placeholder="Un ítem por línea."></textarea></label>
+                <label><span>Pasos clave</span><textarea id="builder-steps" placeholder="Un paso por línea."></textarea></label>
+                <label><span>Preguntas frecuentes</span><textarea id="builder-faq" placeholder="Una por línea con formato: Pregunta | Respuesta"></textarea></label>
+                <div class="template-actions">
+                  <button class="btn ghost" id="apply-builder-btn" type="button">Generar borrador</button>
+                  <button class="btn ghost" id="append-builder-btn" type="button">Agregar al contenido</button>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <aside class="editor-side">
+            <div>
+              <h3>Configuración</h3>
+              <p class="muted small">Definí dónde vive la página y cómo se publica. El contenido útil sin estructura termina siendo un depósito con logo.</p>
+            </div>
+
+            <div class="settings-grid">
+              <label><span>Área</span><select name="space_id" required>${spaceOptions}</select></label>
+              <label><span>Categoría</span><select name="category_id">${categoryOptions}</select></label>
+              <label><span>Página padre</span><select name="parent_page_id">${parentPageOptions}</select></label>
+              <label><span>Ícono</span><input type="text" name="icon" value="${escapeHtml(page?.icon || '📄')}" /></label>
+              <label><span>Orden</span><input type="number" name="nav_order" value="${page?.nav_order ?? 100}" /></label>
+              <label><span>Estado</span><select name="status"><option value="published" ${page?.status !== 'draft' ? 'selected' : ''}>Publicado</option><option value="draft" ${page?.status === 'draft' ? 'selected' : ''}>Borrador</option></select></label>
+              <label><span>Visibilidad</span><select name="visibility"><option value="internal" ${page?.visibility !== 'public' ? 'selected' : ''}>internal</option><option value="public" ${page?.visibility === 'public' ? 'selected' : ''}>public</option></select></label>
+              <label><span>Destacada</span><select name="featured"><option value="true" ${page?.featured ? 'selected' : ''}>Sí</option><option value="false" ${!page?.featured ? 'selected' : ''}>No</option></select></label>
+            </div>
+
+            <div class="callout info">
+              <strong>Plantillas rápidas</strong>
+              <span>Usalas como base y después ajustá. Mucho mejor una estructura correcta que una página “creativa” imposible de seguir.</span>
+            </div>
+            <div class="template-actions">
+              <button class="btn ghost" type="button" data-template="sop">SOP</button>
+              <button class="btn ghost" type="button" data-template="rrhh">RRHH</button>
+              <button class="btn ghost" type="button" data-template="policy">Política</button>
+              <button class="btn ghost" type="button" data-template="faq">FAQ</button>
+            </div>
+          </aside>
         </div>
-        <label style="grid-column:1 / -1"><span>Contenido (Markdown)</span><textarea name="body_md" id="page-body-input" style="min-height:320px">${escapeHtml(page?.body_md || '')}</textarea></label>
-        <div style="grid-column:1 / -1" class="callout info">
-          <strong>Consejo de diseño</strong>
-          <span>Estructurá la página con títulos cortos, pasos secuenciales, responsables, adjuntos y preguntas frecuentes. Si metés todo en un bloque eterno, la gente no aprende: escanea y abandona.</span>
+
+        <div class="modal-footer-actions">
+          <span class="muted small">Guardá en borrador si todavía falta validar el contenido.</span>
+          <div class="quick-actions"><button class="btn primary" type="submit">Guardar página</button></div>
         </div>
-        <div class="quick-actions" style="grid-column:1 / -1"><button class="btn primary" type="submit">Guardar página</button></div>
       </form>
     `,
   });
 
+  const formNode = document.getElementById('page-form');
+  const titleInput = document.getElementById('page-title-input');
+  const slugInput = document.getElementById('page-slug-input');
   const bodyInput = document.getElementById('page-body-input');
+  const previewPane = document.getElementById('page-preview-pane');
+  let slugTouched = Boolean(page?.slug);
+
+  const activateEditorTab = (tab) => {
+    document.querySelectorAll('[data-editor-tab]').forEach((button) => button.classList.toggle('active', button.dataset.editorTab === tab));
+    document.querySelectorAll('[data-editor-panel]').forEach((panel) => panel.classList.toggle('hidden', panel.dataset.editorPanel !== tab));
+  };
+
+  const updatePreview = () => {
+    previewPane.innerHTML = renderMarkdown(bodyInput.value || '_Todavía no hay contenido cargado._');
+  };
+
+  const presetMarkdown = (type, title) => {
+    if (type === 'rrhh') {
+      return `# ${title}
+
+## Objetivo
+
+Explicá de forma simple qué necesita entender el colaborador.
+
+## ¿A quién aplica?
+
+- Personal nuevo
+- Personal activo
+
+## Qué necesitás saber
+
+- Documentación requerida
+- Fechas clave
+- Responsable de seguimiento
+
+## Paso a paso
+
+1. Paso inicial
+2. Validación
+3. Confirmación final
+
+## Preguntas frecuentes
+
+### ¿Qué pasa si falta un documento?
+
+Definí la respuesta.
+
+### ¿Con quién tengo que hablar?
+
+Definí responsable y canal.
+
+## Adjuntos y links
+
+- Agregá recibos modelo, formularios o instructivos.`;
+    }
+    if (type === 'policy') {
+      return `# ${title}
+
+## Objetivo
+
+Definí la regla y por qué existe.
+
+## Alcance
+
+Indicá a quién aplica y desde cuándo.
+
+## Lineamientos
+
+- Norma 1
+- Norma 2
+- Norma 3
+
+## Incumplimientos y escalamiento
+
+Explicá qué pasa cuando no se cumple.
+
+## Referencias
+
+- Adjuntos
+- Formularios
+- Normativa relacionada`;
+    }
+    if (type === 'faq') {
+      return `# ${title}
+
+## Preguntas frecuentes
+
+### Pregunta 1
+
+Respuesta clara y corta.
+
+### Pregunta 2
+
+Respuesta clara y corta.
+
+### Pregunta 3
+
+Respuesta clara y corta.
+
+## Contacto o escalamiento
+
+- Responsable
+- Canal
+- Tiempo de respuesta esperado`;
+    }
+    return `# ${title}
+
+## Objetivo
+
+Qué resuelve este procedimiento.
+
+## Alcance
+
+A quién aplica y en qué casos.
+
+## Responsable
+
+Indicá quién ejecuta o valida.
+
+## Materiales o prerequisitos
+
+- Item 1
+- Item 2
+
+## Paso a paso
+
+1. Paso 1
+2. Paso 2
+3. Paso 3
+
+## Controles y desvíos
+
+- Qué revisar
+- Qué hacer si algo falla
+
+## Adjuntos y referencias
+
+- PDF
+- Video
+- Formulario`;
+  };
+
+  const buildAssistantDraft = () => {
+    const type = document.getElementById('builder-type').value;
+    const objective = document.getElementById('builder-objective').value.trim();
+    const scope = document.getElementById('builder-scope').value.trim();
+    const owner = document.getElementById('builder-owner').value.trim();
+    const materials = document.getElementById('builder-materials').value.split('\n').map((item) => item.trim()).filter(Boolean);
+    const steps = document.getElementById('builder-steps').value.split('\n').map((item) => item.trim()).filter(Boolean);
+    const faqs = document.getElementById('builder-faq').value.split('\n').map((item) => item.trim()).filter(Boolean);
+    const title = titleInput.value.trim() || 'Nueva página';
+    const parts = [`# ${title}`];
+    const summaryValue = formNode.querySelector('[name="summary"]').value.trim();
+    if (summaryValue) parts.push(summaryValue);
+    if (objective) parts.push(`## Objetivo\n\n${objective}`);
+    if (scope) parts.push(`## Alcance\n\n${scope}`);
+    if (owner) parts.push(`## Responsable\n\n${owner}`);
+    if (materials.length) parts.push(`## ${type === 'rrhh' ? 'Documentación o requisitos' : 'Materiales o prerequisitos'}\n\n${materials.map((item) => `- ${item}`).join('\n')}`);
+    if (steps.length) parts.push(`## ${type === 'faq' ? 'Puntos clave' : 'Paso a paso'}\n\n${steps.map((item, index) => `${index + 1}. ${item}`).join('\n')}`);
+    if (faqs.length) {
+      parts.push(`## Preguntas frecuentes\n\n${faqs.map((line) => {
+        const [question, answer] = line.split('|').map((value) => value?.trim()).filter(Boolean);
+        return question ? `### ${question}\n\n${answer || 'Completar respuesta.'}` : '';
+      }).filter(Boolean).join('\n\n')}`);
+    }
+    if (type === 'policy') parts.push('## Incumplimientos y escalamiento\n\nDefiní qué pasa cuando la política no se cumple y quién interviene.');
+    parts.push('## Adjuntos y referencias\n\n- Sumá acá links, videos o archivos relacionados.');
+    return parts.join('\n\n').trim();
+  };
+
+  const injectDraft = (draft, mode = 'replace') => {
+    if (!draft.trim()) return;
+    if (mode === 'append' && bodyInput.value.trim()) bodyInput.value = `${bodyInput.value.trim()}\n\n---\n\n${draft.trim()}`;
+    else bodyInput.value = draft.trim();
+    activateEditorTab('write');
+    updatePreview();
+    bodyInput.focus();
+  };
+
   document.querySelectorAll('[data-insert]').forEach((button) => {
-    button.addEventListener('click', () => insertAtCursor(bodyInput, button.dataset.insert));
+    button.addEventListener('click', () => {
+      insertAtCursor(bodyInput, button.dataset.insert.replaceAll('&#10;', '\n'));
+      updatePreview();
+    });
   });
 
-  document.getElementById('page-form').addEventListener('submit', async (event) => {
+  document.querySelectorAll('[data-template]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const draft = presetMarkdown(button.dataset.template, titleInput.value.trim() || 'Nueva página');
+      injectDraft(draft, bodyInput.value.trim() ? 'append' : 'replace');
+    });
+  });
+
+  document.querySelectorAll('[data-editor-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activateEditorTab(button.dataset.editorTab);
+      if (button.dataset.editorTab === 'preview') updatePreview();
+    });
+  });
+
+  titleInput?.addEventListener('input', () => {
+    if (!slugTouched || !slugInput.value.trim()) slugInput.value = slugify(titleInput.value);
+    updatePreview();
+  });
+  slugInput?.addEventListener('input', () => {
+    slugTouched = true;
+  });
+  bodyInput?.addEventListener('input', updatePreview);
+
+  document.getElementById('apply-builder-btn')?.addEventListener('click', () => {
+    injectDraft(buildAssistantDraft(), 'replace');
+  });
+  document.getElementById('append-builder-btn')?.addEventListener('click', () => {
+    injectDraft(buildAssistantDraft(), 'append');
+  });
+
+  updatePreview();
+
+  formNode.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formElement = event.currentTarget;
     setFormBusy(formElement, true, 'Guardando página...');
